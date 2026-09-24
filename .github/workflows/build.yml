@@ -1,0 +1,142 @@
+name: Build
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: [ main ]
+    paths-ignore: [ "**.md" ]
+  schedule:
+    - cron: "0 0 * * *"
+
+permissions: {}
+
+jobs:
+  build_arch_linux:
+    name: Build (Arch Linux)
+    runs-on: ubuntu-latest
+    container:
+      image: archlinux:base-devel # zizmor: ignore[unpinned-images]
+      options: --user root
+
+    steps:
+      - name: Refresh Packages
+        run: pacman -Syu --noconfirm
+
+      - name: Install Dependencies
+        run: pacman -S --needed --noconfirm base-devel git extra-cmake-modules qt6-tools layer-shell-qt
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: 'recursive'
+
+      - name: Configure CMake
+        run: cmake -B "${GITHUB_WORKSPACE}/build"
+
+      - name: Build
+        run: cmake --build "${GITHUB_WORKSPACE}/build" -j$(nproc)
+
+  build_debian_experimental:
+    name: Build (Debian experimental)
+    runs-on: ubuntu-latest
+    container:
+      image: debian:experimental # zizmor: ignore[unpinned-images]
+      options: --user root
+
+    steps:
+      - name: Refresh Packages
+        run: apt-get update
+
+      - name: Upgrade Packages
+        run: apt-get upgrade -y
+
+      - name: Install Dependencies
+        run: apt-get install -y -f git cmake g++ extra-cmake-modules qt6-tools-dev liblayershellqtinterface-dev
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: 'recursive'
+
+      - name: Configure CMake
+        run: cmake -B "${GITHUB_WORKSPACE}/build"
+
+      - name: Build
+        run: cmake --build "${GITHUB_WORKSPACE}/build" -j$(nproc)
+
+  build_fedora_44:
+    name: Build (Fedora 44)
+    runs-on: ubuntu-latest
+    container:
+      image: fedora:44 # zizmor: ignore[unpinned-images]
+      options: --user root
+
+    steps:
+      - name: Install Dependencies
+        run: dnf -y install git cmake extra-cmake-modules gcc-g++ qt6-qtbase-devel layer-shell-qt-devel
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: 'recursive'
+
+      - name: Configure CMake
+        run: cmake -B "${GITHUB_WORKSPACE}/build"
+
+      - name: Build
+        run: cmake --build "${GITHUB_WORKSPACE}/build" -j$(nproc)
+
+  build_nixos_unstable:
+    name: Build (NixOS unstable)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: 'recursive'
+
+      - name: Install Nix
+        uses: cachix/install-nix-action@13d8dd58da0234aa297dedd986986ccb8e7f3e24 # v31.11.1
+        with:
+          nix_path: nixpkgs=channel:nixos-unstable
+
+      - name: Update flake.lock
+        run: nix flake update
+
+      - name: Build
+        run: nix build -L .?submodules=1#inputactions-overlay
+
+  build_opensuse_tumbleweed:
+    name: Build (opensuse Tumbleweed)
+    runs-on: ubuntu-latest
+    container:
+      image: opensuse/tumbleweed # zizmor: ignore[unpinned-images]
+      options: --user root
+
+    steps:
+      - name: Refresh Packages
+        run: zypper ref
+
+      - name: Install Dependencies
+        run: zypper in -y git cmake-full gcc-c++ kf6-extra-cmake-modules "cmake(Qt6Core)" "cmake(Qt6DBus)" "cmake(Qt6Widgets)" "cmake(LayerShellQt)"
+
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          submodules: 'recursive'
+
+      - name: Configure CMake
+        run: cmake -B "${GITHUB_WORKSPACE}/build"
+
+      - name: Build
+        run: cmake --build "${GITHUB_WORKSPACE}/build" -j$(nproc)
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
