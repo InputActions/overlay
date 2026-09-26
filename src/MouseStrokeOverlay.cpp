@@ -32,28 +32,19 @@ MouseStrokeOverlay::MouseStrokeOverlay(QDBusConnection &bus)
 
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_NoSystemBackground);
-    setAttribute(Qt::WA_ShowWithoutActivating);
     setWindowFlag(Qt::FramelessWindowHint);
-    setWindowFlag(Qt::WindowStaysOnTopHint);
-    setWindowFlag(Qt::Tool);
-
-    setGeometry(QGuiApplication::primaryScreen()->geometry());
     setMouseTracking(true);
 
     createWinId();
-
     m_window = LayerShellQt::Window::get(windowHandle());
-
     if (desktopEnvironment() == DesktopEnvironment::Plasma) {
-        // On Plasma the window is resized to 1x1 instead of being hidden to avoid the open animation
-        m_window->setDesiredSize(QSize(1, 1));
-        m_window->setLayer(LayerShellQt::Window::Layer::LayerBottom);
-    } else {
-        m_window->setLayer(LayerShellQt::Window::Layer::LayerOverlay);
+        // Prevent the scale/glide animation. There's still a fade-in animation, but the workaround for that requires creating a window for every screen.
+        m_window->setScope("tooltip");
     }
 
-    m_window->setAnchors(static_cast<LayerShellQt::Window::Anchors>(LayerShellQt::Window::Anchor::AnchorNone));
-    m_window->setExclusiveZone(0);
+    m_window->setLayer(LayerShellQt::Window::Layer::LayerOverlay);
+    m_window->setAnchors(static_cast<LayerShellQt::Window::Anchors>(LayerShellQt::Window::Anchor::AnchorTop));
+    m_window->setExclusiveZone(-1);
     m_window->setKeyboardInteractivity(LayerShellQt::Window::KeyboardInteractivity::KeyboardInteractivityNone);
     m_window->setWantsToBeOnActiveScreen(true);
 
@@ -61,10 +52,6 @@ MouseStrokeOverlay::MouseStrokeOverlay(QDBusConnection &bus)
     m_pen.setWidthF(4.0);
     m_pen.setCapStyle(Qt::RoundCap);
     m_pen.setJoinStyle(Qt::RoundJoin);
-
-    if (desktopEnvironment() == DesktopEnvironment::Plasma) {
-        QWidget::show();
-    }
 }
 
 void MouseStrokeOverlay::hide()
@@ -72,26 +59,13 @@ void MouseStrokeOverlay::hide()
     m_ignoreMouseMove = true;
     m_path.clear();
     repaint();
-
-    if (desktopEnvironment() == DesktopEnvironment::Plasma) {
-        m_window->setLayer(LayerShellQt::Window::Layer::LayerBottom);
-        m_window->setDesiredSize(QSize(1, 1));
-        repaint();
-    } else {
-        QWidget::hide();
-    }
+    QWidget::hide();
 }
 
 void MouseStrokeOverlay::show()
 {
-    if (desktopEnvironment() == DesktopEnvironment::Plasma) {
-        m_window->setLayer(LayerShellQt::Window::Layer::LayerOverlay);
-        m_window->setDesiredSize(QGuiApplication::primaryScreen()->geometry().size());
-        repaint();
-    } else {
-        QWidget::show();
-    }
-
+    QWidget::show();
+    m_window->setDesiredSize(screen()->size());
     m_ignoreMouseMove = false;
     m_mouseMoved = false;
 }
