@@ -17,7 +17,8 @@
 */
 
 #include "DesktopEnvironment.h"
-#include "MouseStrokeOverlay.h"
+#include "OverlayManager.h"
+#include "dbus/MouseStrokeOverlayInterface.h"
 #include <QApplication>
 #include <QTimer>
 #include <csignal>
@@ -40,9 +41,11 @@ int main(int argc, char **argv)
     auto bus = QDBusConnection::sessionBus();
     bus.registerService("org.inputactions.overlay");
 
-    std::optional<MouseStrokeOverlay> mouseStrokeOverlay;
+    std::optional<OverlayManager> overlayManager;
+    std::optional<MouseStrokeOverlayInterface> mouseStrokeOverlayInterface;
     if (desktopEnvironment() != DesktopEnvironment::GNOME) {
-        mouseStrokeOverlay.emplace(bus);
+        overlayManager.emplace();
+        mouseStrokeOverlayInterface.emplace(overlayManager.value(), bus);
     }
 
     return app.exec();
