@@ -5,9 +5,13 @@ find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
 )
 
 add_executable(inputactions-overlay
-    main.cpp
+    dbus/MouseStrokeOverlayInterface.cpp
+    overlays/MouseStrokeOverlay.cpp
+    overlays/Overlay.cpp
     DesktopEnvironment.cpp
-    MouseStrokeOverlay.cpp
+    main.cpp
+    OverlayManager.cpp
+    OverlayWidget.cpp
 )
 target_link_libraries(inputactions-overlay PRIVATE
     LayerShellQt::Interface

@@ -18,38 +18,37 @@
 
 #pragma once
 
-#include <LayerShellQt/Window>
-#include <QDBusConnection>
-#include <QPainterPath>
-#include <QPen>
-#include <QWidget>
+#include <QMouseEvent>
+#include <QPaintEvent>
 
 namespace InputActions::Overlay
 {
 
-class MouseStrokeOverlay : public QWidget
+class Overlay
 {
-    Q_OBJECT
-    Q_CLASSINFO("D-Bus Interface", "org.inputactions.overlay.MouseStrokeOverlay")
-
 public:
-    MouseStrokeOverlay(QDBusConnection &bus);
+    virtual ~Overlay() = default;
 
-public slots:
-    void hide();
-    void show();
+    /**
+     * The return value of this method must not change after the implementation is added.
+     */
+    virtual bool wantsKeyboardInput() { return false; }
+    /**
+     * The return value of this method must not change after the implementation is added.
+     */
+    virtual bool wantsMouseInput() { return false; }
+
+    virtual void enterEvent(QEnterEvent *event) {}
+    virtual void mouseMoveEvent(QMouseEvent *event) {}
+    virtual void paintEvent(QPaintEvent *event) {}
 
 protected:
-    void mouseMoveEvent(QMouseEvent *event) override;
-    void paintEvent(QPaintEvent *) override;
+    Overlay(QWidget *widget);
+
+    QWidget *widget() const { return m_widget; }
 
 private:
-    QPen m_pen;
-    QPainterPath m_path;
-    bool m_mouseMoved{};
-    bool m_ignoreMouseMove{};
-
-    LayerShellQt::Window *m_window;
+    QWidget *m_widget;
 };
 
 }
