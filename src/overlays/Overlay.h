@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -19,36 +19,39 @@
 #pragma once
 
 #include <QMouseEvent>
+#include <QObject>
 #include <QPaintEvent>
 
 namespace InputActions::Overlay
 {
 
-class Overlay
-{
-public:
-    virtual ~Overlay() = default;
+class OverlayWidget;
 
-    /**
-     * The return value of this method must not change after the implementation is added.
-     */
-    virtual bool wantsKeyboardInput() { return false; }
+class Overlay : public QObject
+{
+    Q_OBJECT
+
+public:
     /**
      * The return value of this method must not change after the implementation is added.
      */
     virtual bool wantsMouseInput() { return false; }
 
-    virtual void enterEvent(QEnterEvent *event) {}
+    /**
+     * This function is also called when the overlay is added after the widget has already received pointer focus.
+     */
+    virtual void pointerEnterEvent(const QPoint &position) {}
+
     virtual void mouseMoveEvent(QMouseEvent *event) {}
     virtual void paintEvent(QPaintEvent *event) {}
 
 protected:
-    Overlay(QWidget *widget);
+    Overlay(OverlayWidget *widget);
 
-    QWidget *widget() const { return m_widget; }
+    OverlayWidget *widget() const { return m_widget; }
 
 private:
-    QWidget *m_widget;
+    OverlayWidget *m_widget;
 };
 
 }
