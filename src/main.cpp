@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -18,6 +18,7 @@
 
 #include "DesktopEnvironment.h"
 #include "OverlayManager.h"
+#include "dbus/ContextMenuOverlayInterface.h"
 #include "dbus/MouseStrokeOverlayInterface.h"
 #include <QApplication>
 #include <QTimer>
@@ -42,9 +43,11 @@ int main(int argc, char **argv)
     bus.registerService("org.inputactions.overlay");
 
     std::optional<OverlayManager> overlayManager;
+    std::optional<ContextMenuOverlayInterface> contextMenuOverlayInterface;
     std::optional<MouseStrokeOverlayInterface> mouseStrokeOverlayInterface;
     if (desktopEnvironment() != DesktopEnvironment::GNOME) {
         overlayManager.emplace();
+        contextMenuOverlayInterface.emplace(overlayManager.value(), bus);
         mouseStrokeOverlayInterface.emplace(overlayManager.value(), bus);
     }
 

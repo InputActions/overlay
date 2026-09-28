@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -20,6 +20,7 @@
 
 #include "OverlayWidget.h"
 #include "overlays/Overlay.h"
+#include <QFuture>
 #include <QObject>
 #include <QScreen>
 
@@ -36,11 +37,16 @@ public:
 
     /**
      * Adds the specified overlay to all windows and shows them.
+     * @returns A future that is finished when all overlay windows are shown.
      */
-    void addOverlay(const std::function<std::unique_ptr<Overlay>(QWidget *widget)> &factory);
+    QFuture<void> addOverlay(const std::function<std::unique_ptr<Overlay>(QWidget *widget)> &factory);
 
     /**
-     * Removes the specified overlay from all windows and hides them if there are no overlays left.
+     * Removes the specified overlay and hides all windows if there are no overlays remaining.
+     */
+    void removeOverlay(const Overlay *overlay);
+    /**
+     * Removes the specified overlay from all windows and hides them if there are no overlays remaining.
      */
     template<typename T>
         requires std::is_base_of_v<Overlay, T>
@@ -49,12 +55,16 @@ public:
         for (const auto &[_, widget] : m_widgets) {
             widget->removeOverlay<T>();
         }
-        for (const auto &[_, widget] : m_widgets) {
-            if (!widget->hasOverlays()) {
-                widget->repaint(); // Wipe window contents to hide the close animation
-                widget->hide();
-            }
-        }
+        hideWidgetsIfNoOverlaysPresent();
+    }
+
+    template<typename T>
+        requires std::is_base_of_v<Overlay, T>
+    bool hasOverlay() const
+    {
+        return std::ranges::any_of(m_widgets, [](const auto &pair) {
+            return pair.second->template hasOverlay<T>();
+        });
     }
 
 private slots:
@@ -62,6 +72,8 @@ private slots:
     void onScreenRemoved(QScreen *screen);
 
 private:
+    void hideWidgetsIfNoOverlaysPresent();
+
     std::map<QScreen *, std::unique_ptr<OverlayWidget>> m_widgets;
 };
 

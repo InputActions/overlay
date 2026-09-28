@@ -18,41 +18,34 @@
 
 #pragma once
 
-#include <QMouseEvent>
+#include "overlays/ContextMenuOverlay.h"
+#include <QDBusConnection>
 #include <QObject>
-#include <QPaintEvent>
 
 namespace InputActions::Overlay
 {
 
-class Overlay : public QObject
+class ContextMenuOverlayShared;
+class OverlayManager;
+
+class ContextMenuOverlayInterface : public QObject
 {
     Q_OBJECT
+    Q_CLASSINFO("D-Bus Interface", "org.inputactions.overlay.ContextMenuOverlay")
 
 public:
-    /**
-     * The return value of this method must not change after the implementation is added.
-     */
-    virtual bool wantsKeyboardInput() { return false; }
-    /**
-     * The return value of this method must not change after the implementation is added.
-     */
-    virtual bool wantsMouseInput() { return false; }
+    ContextMenuOverlayInterface(OverlayManager &overlayManager, QDBusConnection &bus);
+    ~ContextMenuOverlayInterface() override;
 
-    virtual void enterEvent(QEnterEvent *event);
-    virtual void leaveEvent(QEvent *event);
-    virtual void mouseMoveEvent(QMouseEvent *event) {}
-    virtual void paintEvent(QPaintEvent *event) {}
-
-protected:
-    Overlay(QWidget *widget);
-
-    QWidget *widget() const { return m_widget; }
-    bool hasPointerFocus() const { return m_hasPointerFocus; }
+public slots:
+    Q_NOREPLY void showMenu(const QString &json, const QDBusMessage &message);
+    Q_NOREPLY void showOverlay(const QDBusMessage &message);
 
 private:
-    QWidget *m_widget;
-    bool m_hasPointerFocus{};
+    std::unique_ptr<ContextMenuOverlayShared> m_shared;
+
+    OverlayManager &m_overlayManager;
+    QDBusConnection &m_bus;
 };
 
 }
