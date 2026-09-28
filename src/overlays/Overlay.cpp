@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -24,6 +24,16 @@ namespace InputActions::Overlay
 Overlay::Overlay(QWidget *widget)
     : m_widget(widget)
 {
+}
+
+void Overlay::enterEvent(QEnterEvent *event)
+{
+    m_hasPointerFocus = true;
+}
+
+void Overlay::leaveEvent(QEvent *event)
+{
+    m_hasPointerFocus = false;
 }
 
 }

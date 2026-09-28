@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -34,14 +34,60 @@ OverlayManager::OverlayManager()
 
 OverlayManager::~OverlayManager() = default;
 
-void OverlayManager::addOverlay(const std::function<std::unique_ptr<Overlay>(QWidget *widget)> &factory)
+QFuture<void> OverlayManager::addOverlay(const std::function<std::unique_ptr<Overlay>(QWidget *widget)> &factory)
 {
+    std::vector<OverlayWidget *> hiddenWidgets;
     for (const auto &[_, widget] : m_widgets) {
         widget->addOverlay(factory(widget.get()));
-    }
-    for (const auto &[_, widget] : m_widgets) {
         if (!widget->isVisible()) {
-            widget->show();
+            hiddenWidgets.push_back(widget.get());
+        }
+    }
+
+    if (hiddenWidgets.empty()) {
+        return QtFuture::makeReadyVoidFuture();
+    }
+
+    std::vector<QFuture<void>> futures;
+    for (auto *widget : hiddenWidgets) {
+        auto promise = std::make_shared<QPromise<void>>();
+        connect(
+            widget,
+            &OverlayWidget::paintEventReceived,
+            this,
+            [promise]() {
+                promise->finish();
+            },
+            Qt::SingleShotConnection);
+        futures.push_back(promise->future());
+
+        promise->start();
+        widget->show();
+    }
+    return QtFuture::whenAll(futures.begin(), futures.end());
+}
+
+void OverlayManager::removeOverlay(const Overlay *overlay)
+{
+    for (const auto &[_, widget] : m_widgets) {
+        widget->removeOverlay(overlay);
+    }
+    hideWidgetsIfNoOverlaysPresent();
+}
+
+void OverlayManager::hideWidgetsIfNoOverlaysPresent()
+{
+    // Hiding windows can mess with focus, so only do it when there are no overlays left
+    const auto anyWindowHasOverlay = std::ranges::any_of(m_widgets, [](const auto &pair) {
+        return pair.second->hasOverlays();
+    });
+    if (anyWindowHasOverlay) {
+        return;
+    }
+
+    for (const auto &[_, widget] : m_widgets) {
+        if (widget->isVisible()) {
+            widget->hide();
         }
     }
 }

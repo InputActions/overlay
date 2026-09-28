@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -34,8 +34,10 @@ OverlayWidget::OverlayWidget(QScreen *screen)
     createWinId();
     m_window = LayerShellQt::Window::get(windowHandle());
     if (desktopEnvironment() == DesktopEnvironment::Plasma) {
-        // Prevent the scale/glide animation. There's still a fade-in animation, but the workaround for that requires creating a window for every screen.
-        m_window->setScope("tooltip");
+        // Prevent the scale/glide animation. There's still a fade-in animation, but the workaround for that requires resizing windows instead of hiding them,
+        // which causes a bunch of different issues. The "tooltip" scope causes the menu to disappear when moving the pointer. I wonder what side effects this
+        // one has...
+        m_window->setScope("on-screen-display");
     }
 
     m_window->setLayer(LayerShellQt::Window::Layer::LayerOverlay);
@@ -54,6 +56,21 @@ void OverlayWidget::addOverlay(std::unique_ptr<Overlay> overlay)
 {
     m_overlays.push_back(std::move(overlay));
     overlaysChanged();
+}
+
+void OverlayWidget::removeOverlay(const Overlay *overlay)
+{
+    const auto removed = std::erase_if(m_overlays, [overlay](auto &value) {
+        if (value.get() == overlay) {
+            value.release()->deleteLater();
+            return true;
+        }
+        return false;
+    });
+    if (removed) {
+        overlaysChanged();
+        repaint();
+    }
 }
 
 bool OverlayWidget::hasOverlays() const
@@ -89,6 +106,13 @@ void OverlayWidget::enterEvent(QEnterEvent *event)
     }
 }
 
+void OverlayWidget::leaveEvent(QEvent *event)
+{
+    for (const auto &overlay : m_overlays) {
+        overlay->leaveEvent(event);
+    }
+}
+
 void OverlayWidget::mouseMoveEvent(QMouseEvent *event)
 {
     for (const auto &overlay : m_overlays) {
@@ -98,6 +122,7 @@ void OverlayWidget::mouseMoveEvent(QMouseEvent *event)
 
 void OverlayWidget::paintEvent(QPaintEvent *event)
 {
+    Q_EMIT paintEventReceived();
     for (const auto &overlay : m_overlays) {
         overlay->paintEvent(event);
     }

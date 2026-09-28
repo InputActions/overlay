@@ -5,7 +5,9 @@ find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
 )
 
 add_executable(inputactions-overlay
+    dbus/ContextMenuOverlayInterface.cpp
     dbus/MouseStrokeOverlayInterface.cpp
+    overlays/ContextMenuOverlay.cpp
     overlays/MouseStrokeOverlay.cpp
     overlays/Overlay.cpp
     DesktopEnvironment.cpp
