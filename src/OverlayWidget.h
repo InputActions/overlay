@@ -20,14 +20,14 @@
 
 #include <LayerShellQt/Window>
 #include <QEnterEvent>
-#include <QWidget>
+#include <QOpenGLWidget>
 
 namespace InputActions::Overlay
 {
 
 class Overlay;
 
-class OverlayWidget : public QWidget
+class OverlayWidget : public QOpenGLWidget
 {
 public:
     OverlayWidget(QScreen *screen);
@@ -46,6 +46,8 @@ public:
         }
     }
     bool hasOverlays() const;
+
+    void hide();
 
 protected:
     void enterEvent(QEnterEvent *event) override;

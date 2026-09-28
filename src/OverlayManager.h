@@ -51,7 +51,6 @@ public:
         }
         for (const auto &[_, widget] : m_widgets) {
             if (!widget->hasOverlays()) {
-                widget->repaint(); // Wipe window contents to hide the close animation
                 widget->hide();
             }
         }
