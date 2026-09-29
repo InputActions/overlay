@@ -19,6 +19,9 @@
 #include "OverlayWidget.h"
 #include "DesktopEnvironment.h"
 #include "overlays/Overlay.h"
+#include <QOpenGLContext>
+#include <QOpenGLFunctions>
+#include <QPainter>
 
 namespace InputActions::Overlay
 {
@@ -82,6 +85,35 @@ void OverlayWidget::overlaysChanged()
     m_wantsMouseInput = wantsMouseInput;
 }
 
+void OverlayWidget::hide()
+{
+    // Wipe window contents to hide the close animation
+    makeCurrent();
+    auto *f = QOpenGLContext::currentContext()->functions();
+    f->glClearColor(0, 0, 0, 1);
+    f->glClear(GL_COLOR_BUFFER_BIT);
+    doneCurrent();
+
+    // This is terrible but it seems to work
+    connect(
+        this,
+        &OverlayWidget::frameSwapped,
+        this,
+        [this]() {
+            connect(
+                this,
+                &OverlayWidget::frameSwapped,
+                this,
+                [this]() {
+                    QOpenGLWidget::hide();
+                },
+                Qt::SingleShotConnection);
+            repaint();
+        },
+        Qt::SingleShotConnection);
+    repaint();
+}
+
 void OverlayWidget::enterEvent(QEnterEvent *event)
 {
     for (const auto &overlay : m_overlays) {
@@ -98,6 +130,11 @@ void OverlayWidget::mouseMoveEvent(QMouseEvent *event)
 
 void OverlayWidget::paintEvent(QPaintEvent *event)
 {
+    QPainter painter(this);
+    painter.setCompositionMode(QPainter::CompositionMode_Source);
+    painter.fillRect(rect(), Qt::transparent);
+    painter.end();
+
     for (const auto &overlay : m_overlays) {
         overlay->paintEvent(event);
     }

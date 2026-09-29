@@ -1,6 +1,7 @@
 find_package(LayerShellQt REQUIRED)
 find_package(Qt6 ${QT_MIN_VERSION} CONFIG REQUIRED COMPONENTS
     DBus
+    OpenGLWidgets
     Widgets
 )
 
@@ -16,6 +17,7 @@ add_executable(inputactions-overlay
 target_link_libraries(inputactions-overlay PRIVATE
     LayerShellQt::Interface
     Qt6::DBus
+    Qt6::OpenGLWidgets
     Qt6::Widgets
 )
 
