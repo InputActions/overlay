@@ -87,6 +87,10 @@ void OverlayWidget::overlaysChanged()
 
 void OverlayWidget::hide()
 {
+    if (m_hideScheduled) {
+        return;
+    }
+
     // Wipe window contents to hide the close animation
     makeCurrent();
     auto *f = QOpenGLContext::currentContext()->functions();
@@ -94,6 +98,7 @@ void OverlayWidget::hide()
     f->glClear(GL_COLOR_BUFFER_BIT);
     doneCurrent();
 
+    m_hideScheduled = true;
     // This is terrible but it seems to work
     connect(
         this,
@@ -105,6 +110,7 @@ void OverlayWidget::hide()
                 &OverlayWidget::frameSwapped,
                 this,
                 [this]() {
+                    m_hideScheduled = false;
                     QOpenGLWidget::hide();
                 },
                 Qt::SingleShotConnection);
@@ -112,6 +118,20 @@ void OverlayWidget::hide()
         },
         Qt::SingleShotConnection);
     repaint();
+}
+
+void OverlayWidget::show()
+{
+    if (m_hideScheduled) {
+        cancelHide();
+    }
+    QOpenGLWidget::show();
+}
+
+void OverlayWidget::cancelHide()
+{
+    m_hideScheduled = false;
+    disconnect(this, &OverlayWidget::frameSwapped, this, nullptr);
 }
 
 void OverlayWidget::enterEvent(QEnterEvent *event)

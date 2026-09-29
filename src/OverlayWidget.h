@@ -48,6 +48,7 @@ public:
     bool hasOverlays() const;
 
     void hide();
+    void show();
 
 protected:
     void enterEvent(QEnterEvent *event) override;
@@ -58,11 +59,13 @@ private slots:
     void onScreenGeometryChanged(const QRect &geometry);
 
 private:
+    void cancelHide();
     void overlaysChanged();
 
     QScreen *m_screen;
     LayerShellQt::Window *m_window;
     std::vector<std::unique_ptr<Overlay>> m_overlays;
+    bool m_hideScheduled{};
 
     bool m_wantsKeyboardInput{};
     bool m_wantsMouseInput{};
