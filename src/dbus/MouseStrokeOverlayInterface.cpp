@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -31,7 +31,7 @@ MouseStrokeOverlayInterface::MouseStrokeOverlayInterface(OverlayManager &overlay
 
 void MouseStrokeOverlayInterface::show()
 {
-    m_overlayManager.addOverlay([](QWidget *widget) {
+    m_overlayManager.addOverlay([](auto *widget) {
         return std::make_unique<MouseStrokeOverlay>(widget);
     });
 }

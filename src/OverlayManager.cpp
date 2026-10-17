@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -34,14 +34,29 @@ OverlayManager::OverlayManager()
 
 OverlayManager::~OverlayManager() = default;
 
-void OverlayManager::addOverlay(const std::function<std::unique_ptr<Overlay>(QWidget *widget)> &factory)
+QFuture<void> OverlayManager::addOverlay(const std::function<std::unique_ptr<Overlay>(OverlayWidget *widget)> &factory)
 {
+    std::vector<QFuture<void>> futures;
     for (const auto &[_, widget] : m_widgets) {
-        widget->addOverlay(factory(widget.get()));
+        futures.push_back(widget->addOverlay(factory(widget.get())));
     }
+
+    return QtFuture::whenAll(futures.begin(), futures.end());
+}
+
+void OverlayManager::hideWidgetsIfNoOverlaysPresent()
+{
+    // Hiding windows can mess with focus, so only do it when there are no overlays left
+    const auto anyWindowHasOverlay = std::ranges::any_of(m_widgets, [](const auto &pair) {
+        return pair.second->hasOverlays();
+    });
+    if (anyWindowHasOverlay) {
+        return;
+    }
+
     for (const auto &[_, widget] : m_widgets) {
-        if (!widget->isVisible()) {
-            widget->show();
+        if (widget->isVisible()) {
+            widget->hide();
         }
     }
 }

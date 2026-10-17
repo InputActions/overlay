@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -28,11 +28,12 @@ namespace InputActions::Overlay
 class MouseStrokeOverlay : public Overlay
 {
 public:
-    MouseStrokeOverlay(QWidget *widget);
+    MouseStrokeOverlay(OverlayWidget *widget);
 
     bool wantsMouseInput() override { return true; }
 
-    void enterEvent(QEnterEvent *event) override;
+    void pointerEnterEvent(const QPoint &position) override;
+
     void mouseMoveEvent(QMouseEvent *event) override;
     void paintEvent(QPaintEvent *event) override;
 

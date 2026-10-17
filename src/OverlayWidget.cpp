@@ -1,5 +1,5 @@
 /*
-    InputActions overlay - Overlay for drawing on the screen
+    InputActions overlay - Overlay for drawing on the screen and showing custom context menus
     Copyright (C) 2026 Marcin Woźniak
 
     This program is free software: you can redistribute it and/or modify
@@ -37,8 +37,10 @@ OverlayWidget::OverlayWidget(QScreen *screen)
     createWinId();
     m_window = LayerShellQt::Window::get(windowHandle());
     if (desktopEnvironment() == DesktopEnvironment::Plasma) {
-        // Prevent the scale/glide animation. There's still a fade-in animation, but the workaround for that requires creating a window for every screen.
-        m_window->setScope("tooltip");
+        // Prevent the scale/glide animation. There's still a fade-in animation, but the workaround for that requires resizing windows instead of hiding them,
+        // which causes a bunch of different issues. The "tooltip" scope causes the menu to disappear when moving the pointer. I wonder what side effects this
+        // one has...
+        m_window->setScope("on-screen-display");
     }
 
     m_window->setLayer(LayerShellQt::Window::Layer::LayerOverlay);
@@ -51,12 +53,57 @@ OverlayWidget::OverlayWidget(QScreen *screen)
     connect(m_screen, &QScreen::geometryChanged, this, &OverlayWidget::onScreenGeometryChanged);
 }
 
-OverlayWidget::~OverlayWidget() = default;
-
-void OverlayWidget::addOverlay(std::unique_ptr<Overlay> overlay)
+OverlayWidget::~OverlayWidget()
 {
+    if (s_overlayWithPointerFocus == this) {
+        s_overlayWithPointerFocus = {};
+    }
+}
+
+QFuture<void> OverlayWidget::addOverlay(std::unique_ptr<Overlay> overlay)
+{
+    if (m_hideScheduled) {
+        cancelHide();
+    }
+
+    auto *overlayPtr = overlay.get();
     m_overlays.push_back(std::move(overlay));
     overlaysChanged();
+
+    if (isVisible()) {
+        if (hasPointerFocus()) {
+            overlayPtr->pointerEnterEvent(QCursor::pos());
+        }
+        return QtFuture::makeReadyVoidFuture();
+    }
+
+    auto promise = std::make_shared<QPromise<void>>();
+    promise->start();
+    connect(
+        this,
+        &OverlayWidget::paintEventReceived,
+        this,
+        [promise]() {
+            promise->finish();
+        },
+        Qt::SingleShotConnection);
+    show();
+    return promise->future();
+}
+
+void OverlayWidget::removeOverlay(const Overlay *overlay)
+{
+    const auto removed = std::erase_if(m_overlays, [overlay](auto &value) {
+        if (value.get() == overlay) {
+            value.release()->deleteLater();
+            return true;
+        }
+        return false;
+    });
+    if (removed) {
+        overlaysChanged();
+        repaint();
+    }
 }
 
 bool OverlayWidget::hasOverlays() const
@@ -66,22 +113,15 @@ bool OverlayWidget::hasOverlays() const
 
 void OverlayWidget::overlaysChanged()
 {
-    bool wantsKeyboardInput{};
     bool wantsMouseInput{};
 
     for (const auto &overlay : m_overlays) {
-        wantsKeyboardInput |= overlay->wantsKeyboardInput();
         wantsMouseInput |= overlay->wantsMouseInput();
-    }
-    if (wantsKeyboardInput != m_wantsKeyboardInput) {
-        m_window->setKeyboardInteractivity(wantsKeyboardInput ? LayerShellQt::Window::KeyboardInteractivity::KeyboardInteractivityExclusive
-                                                              : LayerShellQt::Window::KeyboardInteractivity::KeyboardInteractivityNone);
     }
     if (wantsMouseInput != m_wantsMouseInput) {
         setMouseTracking(wantsMouseInput);
     }
 
-    m_wantsKeyboardInput = wantsKeyboardInput;
     m_wantsMouseInput = wantsMouseInput;
 }
 
@@ -110,6 +150,9 @@ void OverlayWidget::hide()
                 &OverlayWidget::frameSwapped,
                 this,
                 [this]() {
+                    if (s_overlayWithPointerFocus == this) {
+                        s_overlayWithPointerFocus = {};
+                    }
                     m_hideScheduled = false;
                     QOpenGLWidget::hide();
                 },
@@ -136,8 +179,9 @@ void OverlayWidget::cancelHide()
 
 void OverlayWidget::enterEvent(QEnterEvent *event)
 {
+    s_overlayWithPointerFocus = this;
     for (const auto &overlay : m_overlays) {
-        overlay->enterEvent(event);
+        overlay->pointerEnterEvent(event->position().toPoint());
     }
 }
 
@@ -150,6 +194,8 @@ void OverlayWidget::mouseMoveEvent(QMouseEvent *event)
 
 void OverlayWidget::paintEvent(QPaintEvent *event)
 {
+    Q_EMIT paintEventReceived();
+
     QPainter painter(this);
     painter.setCompositionMode(QPainter::CompositionMode_Source);
     painter.fillRect(rect(), Qt::transparent);
@@ -158,6 +204,11 @@ void OverlayWidget::paintEvent(QPaintEvent *event)
     for (const auto &overlay : m_overlays) {
         overlay->paintEvent(event);
     }
+}
+
+bool OverlayWidget::hasPointerFocus() const
+{
+    return s_overlayWithPointerFocus == this;
 }
 
 void OverlayWidget::onScreenGeometryChanged(const QRect &geometry)
