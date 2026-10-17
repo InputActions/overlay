@@ -29,6 +29,10 @@ namespace InputActions::Overlay
 OverlayWidget::OverlayWidget(QScreen *screen)
     : m_screen(screen)
 {
+    QSurfaceFormat format;
+    format.setSamples(4);
+    setFormat(format);
+
     setAttribute(Qt::WA_TranslucentBackground);
     setAttribute(Qt::WA_NoSystemBackground);
     setWindowFlag(Qt::FramelessWindowHint);
